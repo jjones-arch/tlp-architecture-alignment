@@ -228,6 +228,30 @@
         .meta-value { font-size: 0.88rem; font-weight: 600; color: #e2e8f0; }
         .meta-value.placeholder { color: #475569; font-style: italic; font-weight: 400; }
 
+        .contributor-row {
+            margin-top: 12px; padding: 12px 16px; background: #0f172a;
+            border-radius: 10px; border: 1px solid rgba(99,102,241,0.2);
+        }
+        .contributor-row .meta-label { color: #818cf8; }
+        .contributor-name { font-size: 0.85rem; font-weight: 700; color: #e2e8f0; }
+        .contributor-role {
+            font-size: 0.78rem; color: #94a3b8; line-height: 1.5; margin-top: 4px;
+        }
+        .contributor-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 10px; border-radius: 6px; font-size: 0.7rem;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+            margin-top: 6px;
+        }
+        .contributor-badge.execution {
+            background: rgba(99,102,241,0.12); color: #818cf8;
+            border: 1px solid rgba(99,102,241,0.25);
+        }
+        .contributor-badge.monitor {
+            background: rgba(251,191,36,0.12); color: #fbbf24;
+            border: 1px solid rgba(251,191,36,0.25);
+        }
+
         .timer-row {
             display: flex; align-items: center; gap: 8px; margin-top: 14px;
             padding: 12px 16px; background: #0f172a; border-radius: 10px;
@@ -431,6 +455,9 @@
                 starts: "Need is identified",
                 stops: "SBO authorizes exploration into TLP",
                 slo: "Set target SLO",
+                contributor: "PgM, Delivery & Execution",
+                contributorRole: "Guides the team through Stage 1, ensuring the business need is properly scoped and the right stakeholders are engaged before authorization.",
+                contributorType: "execution",
                 hasPir: true,
                 pirTitle: "Architecture Initial Scoping & Design",
                 pirDesc: "This is where Fadi's process begins. The Business Architect performs initial scoping, runs VPE (Vision Plan Execute) sessions to define the problem statement, and creates the architecture design \u2014 including scope, requirements, future state design, security architecture, data governance, and AI impact assessment. If the outcome is that new technology needs to be purchased or a vendor needs to be evaluated, it enters the TLP.",
@@ -443,6 +470,9 @@
                 starts: "SBO authorization received",
                 stops: "Budget pre-approved & portfolio check complete",
                 slo: "Set target SLO",
+                contributor: "PgM, Delivery & Execution",
+                contributorRole: "Coordinates between Finance, Procurement, TLP Manager, and Architecture to keep operational alignment on track.",
+                contributorType: "execution",
                 hasPir: true,
                 hasGate: true,
                 pirTitle: "Stakeholder Review & Architecture Validation",
@@ -456,6 +486,9 @@
                 starts: "Documentation collection / NDA link sent to vendor",
                 stops: "All required docs received",
                 slo: "15 business days",
+                contributor: "PgM, Delivery & Execution",
+                contributorRole: "Drives vendor documentation collection, manages NDA execution timelines, and ensures all required documents are received within the SLO.",
+                contributorType: "execution",
                 hasPir: true,
                 pirTitle: "Vendor Engagement Begins",
                 pirDesc: "This corresponds to the beginning of Fadi's 'Vendor Engagement' block \u2014 specifically the NDA and initial vendor contact. Procurement (JR Lopez) has already been notified in Stage 2 that vendor engagement is coming.",
@@ -468,6 +501,9 @@
                 starts: "Vendor docs submitted for review",
                 stops: "Evaluation authorized",
                 slo: "Set target SLO",
+                contributor: "PgM, Delivery & Execution",
+                contributorRole: "Tracks vendor documentation through compliance reviews with Security, Legal, and Privacy to keep authorization on schedule.",
+                contributorType: "execution",
                 hasPir: true,
                 pirTitle: "Compliance Approval Process",
                 pirDesc: "This maps to Fadi's 'Initiate Compliance Approval Process' and document approval steps \u2014 receiving software documentation, MSA/legal terms, security documents (SOC II), DPA/CCPA documentation, and quotes/SOW/terms.",
@@ -480,6 +516,9 @@
                 starts: "Evaluation authorized",
                 stops: "Eval complete & terms negotiated",
                 slo: "Set target SLO",
+                contributor: "PgM, Delivery & Execution",
+                contributorRole: "Coordinates evaluation activities between the requesting team and Procurement, ensuring evaluations complete on time and commercial terms are aligned.",
+                contributorType: "execution",
                 hasPir: true,
                 pirTitle: "Vendor Evaluation & Negotiation",
                 pirDesc: "This maps to Fadi's 'Vendor Evaluation' activities \u2014 RFI, RFQ, PoC (Proof of Concept), scorecard evaluation, and the beginning of SOW & MSA negotiation. Procurement runs the negotiation process in parallel.",
@@ -492,6 +531,9 @@
                 starts: "Eval results & terms ready",
                 stops: "Vendor selected (or status quo confirmed)",
                 slo: "Set target SLO",
+                contributor: "PgM, Delivery & Execution",
+                contributorRole: "Prepares the evaluation summary and commercial comparison for the SBO, facilitating the selection decision meeting.",
+                contributorType: "execution",
                 hasPir: true,
                 pirTitle: "Finalize Business Case & Final Review",
                 pirDesc: "This maps to Fadi's 'Finalize Business Case' and 'Final Review with Business' steps \u2014 final scope, resources, project timeline, future state design architecture, data governance review complete, vendor onboarded, all approvals secured, and project funding request finalized.",
@@ -504,6 +546,9 @@
                 starts: "Vendor selected",
                 stops: "Contract signed & PO issued",
                 slo: "Set target SLO",
+                contributor: "PgM, Delivery & Execution",
+                contributorRole: "Coordinates contract execution between Legal, Procurement, and the SBO to ensure the agreement and PO are finalized.",
+                contributorType: "execution",
                 hasPir: true,
                 pirTitle: "Purchase Process",
                 pirDesc: "This maps to Fadi's 'Initiate Purchase' and 'Purchase Process' steps \u2014 submitting the request in Coupa, final stakeholder approval, and marking the project as approved in Jira with all requirements met.",
@@ -528,6 +573,9 @@
                 starts: "Go-live",
                 stops: "Ongoing (until change, renewal, or sunset)",
                 slo: "N/A (ongoing)",
+                contributor: "Technology Lifecycle Manager",
+                contributorRole: "Monitors the production solution in Zluri, ensures proper cataloging, tracks service health, and reports on operational status to TLP leadership.",
+                contributorType: "monitor",
                 hasPir: true,
                 pirTitle: "Service Governance",
                 pirDesc: "This maps to Fadi's 'Service Governance Process' \u2014 cataloging in Zluri (Melissa Boud), establishing the support model, updating BCP/DR plan, UAT testing sign-off, change management, and pushing to production.",
@@ -540,6 +588,9 @@
                 starts: "Change detected or reported",
                 stops: "Assessment complete (continue, amend, or re-evaluate)",
                 slo: "Set target SLO",
+                contributor: "Technology Lifecycle Manager",
+                contributorRole: "Detects and reports material changes through Zluri monitoring, initiates the assessment process, and tracks the outcome to resolution.",
+                contributorType: "monitor",
                 hasPir: false
             },
             {
@@ -549,6 +600,9 @@
                 starts: "Renewal notification sent",
                 stops: "Decision made (renew / replace / sunset)",
                 slo: "Set target SLO",
+                contributor: "Technology Lifecycle Manager",
+                contributorRole: "Initiates renewal notifications, provides usage and cost data from Zluri, and coordinates the renewal decision process with the SBO.",
+                contributorType: "monitor",
                 hasPir: false
             },
             {
@@ -558,6 +612,9 @@
                 starts: "Sunset decision made",
                 stops: "All access revoked, data handled, lifecycle closed",
                 slo: "Set target SLO",
+                contributor: "Technology Lifecycle Manager",
+                contributorRole: "Manages the decommissioning process in Zluri, ensures access revocation is tracked, confirms data handling compliance, and closes the lifecycle record.",
+                contributorType: "monitor",
                 hasPir: false
             }
         ];
@@ -719,6 +776,28 @@
             timer.className = 'timer-row';
             timer.innerHTML = '<div class="timer-icon">\u23F1</div><div class="timer-text"><strong>Timer starts:</strong> ' + s.starts + '<br><strong>Timer stops:</strong> ' + s.stops + '</div>';
             card.appendChild(timer);
+
+            if (s.contributor) {
+                var contRow = document.createElement('div');
+                contRow.className = 'contributor-row';
+                var contLabel = document.createElement('div');
+                contLabel.className = 'meta-label';
+                contLabel.textContent = 'Contributing Role';
+                var contName = document.createElement('div');
+                contName.className = 'contributor-name';
+                contName.textContent = s.contributor;
+                var contRole = document.createElement('div');
+                contRole.className = 'contributor-role';
+                contRole.textContent = s.contributorRole;
+                var contBadge = document.createElement('div');
+                contBadge.className = 'contributor-badge ' + s.contributorType;
+                contBadge.textContent = s.contributorType === 'execution' ? 'Contributor \u2014 Stages 1\u20137' : 'Contributor \u2014 Stages 9\u201312';
+                contRow.appendChild(contLabel);
+                contRow.appendChild(contName);
+                contRow.appendChild(contRole);
+                contRow.appendChild(contBadge);
+                card.appendChild(contRow);
+            }
 
             if (s.hasGate) {
                 var gate = document.createElement('div');
