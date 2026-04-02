@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TLP Stages &amp; Architecture Alignment</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 32px 24px;
+        }
+
+        .header { text-align: center; margin-bottom: 20px; max-width: 800px; }
+        .header h1 { font-size: 1.8rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px; }
+        .header p { font-size: 0.9rem; color: #94a3b8; line-height: 1.5; }
+
+        /* Toggle Bar */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 12px 20px;
+            background: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+        .toggle-label { font-size: 0.85rem; font-weight: 600; color: #94a3b8; }
+        .toggle-switch {
+            position: relative;
+            width: 52px;
+            height: 28px;
+            background: #334155;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+        .toggle-switch.active { background: #f97316; }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .toggle-switch.active::after { transform: translateX(24px); }
+        .overlay-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(249,115,22,0.15);
+            color: #f97316;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .overlay-badge.visible { opacity: 1; }
+
+        /* Progress Bar */
+        .progress-container { width: 100%; max-width: 1200px; margin-bottom: 12px; }
+        .phase-labels { display: flex; margin-bottom: 14px; padding: 0 20px; }
+        .phase-label-item {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; text-align: center;
+        }
+        .phase-label-item.discover { flex: 3; color: #60a5fa; }
+        .phase-label-item.evaluate { flex: 3; color: #a78bfa; }
+        .phase-label-item.acquire  { flex: 2; color: #34d399; }
+        .phase-label-item.operate  { flex: 4; color: #fbbf24; }
+
+        .track { display: flex; align-items: center; position: relative; padding: 0 20px; }
+        .track-line {
+            position: absolute; top: 50%; left: 44px; right: 44px;
+            height: 3px; background: #334155; transform: translateY(-50%); z-index: 0;
+        }
+        .track-line .seg { position: absolute; height: 100%; border-radius: 2px; }
+        .seg-discover { left: 0%; width: 25%; background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .seg-evaluate { left: 25%; width: 25%; background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+        .seg-acquire  { left: 50%; width: 16.67%; background: linear-gradient(90deg, #10b981, #34d399); }
+        .seg-operate  { left: 66.67%; width: 33.33%; background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+
+        .stops { display: flex; justify-content: space-between; width: 100%; position: relative; z-index: 1; }
+        .stop {
+            display: flex; flex-direction: column; align-items: center;
+            cursor: pointer; transition: transform 0.2s; flex: 1;
+        }
+        .stop:hover { transform: translateY(-3px); }
+        .stop.active .dot { transform: scale(1.4); box-shadow: 0 0 20px rgba(255,255,255,0.3); }
+
+        .dot {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.8rem; color: white;
+            transition: all 0.2s; border: 3px solid #0f172a;
+            position: relative;
+        }
+        .stop[data-phase="discover"] .dot { background: #3b82f6; }
+        .stop[data-phase="evaluate"] .dot { background: #8b5cf6; }
+        .stop[data-phase="acquire"] .dot  { background: #10b981; }
+        .stop[data-phase="operate"] .dot  { background: #f59e0b; color: #1a1a2e; }
+
+        .pir-ring {
+            position: absolute; inset: -5px; border-radius: 50%;
+            border: 2px solid #f97316; opacity: 0; transition: opacity 0.3s;
+        }
+        .pir-active .pir-ring { opacity: 1; }
+
+        .stop-label {
+            font-size: 0.55rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px; color: #64748b; margin-top: 10px;
+            text-align: center; line-height: 1.3; max-width: 80px; transition: color 0.2s;
+        }
+        .stop:hover .stop-label, .stop.active .stop-label { color: #e2e8f0; }
+
+        /* PIR Flowchart Overlay */
+        .pir-overlay {
+            width: 100%; max-width: 1200px;
+            max-height: 0; overflow: hidden; opacity: 0;
+            transition: max-height 0.5s ease, opacity 0.4s ease, margin 0.4s ease;
+            margin-bottom: 0;
+        }
+        .pir-overlay.visible {
+            max-height: 600px; opacity: 1; margin-bottom: 24px;
+        }
+        .pir-container {
+            background: linear-gradient(135deg, rgba(249,115,22,0.06), rgba(249,115,22,0.02));
+            border: 1px solid rgba(249,115,22,0.25);
+            border-radius: 16px; padding: 20px 24px;
+        }
+        .pir-header {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+        }
+        .pir-header-icon {
+            width: 32px; height: 32px; border-radius: 8px;
+            background: rgba(249,115,22,0.2); display: flex;
+            align-items: center; justify-content: center;
+            font-size: 0.85rem; font-weight: 800; color: #f97316;
+        }
+        .pir-header h3 { font-size: 0.95rem; font-weight: 700; color: #f97316; }
+        .pir-header p { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
+
+        .pir-flow {
+            display: flex; align-items: stretch; gap: 0; overflow-x: auto;
+            padding: 4px 0 8px;
+        }
+        .pir-step {
+            flex: 1; min-width: 110px; padding: 10px 8px;
+            border-radius: 10px; cursor: pointer;
+            transition: all 0.2s; text-align: center;
+            border: 1px solid transparent;
+            position: relative;
+        }
+        .pir-step:hover { transform: translateY(-2px); }
+        .pir-step.highlight {
+            border-color: rgba(249,115,22,0.4);
+            background: rgba(249,115,22,0.1);
+        }
+        .pir-step-name {
+            font-size: 0.7rem; font-weight: 700; color: #e2e8f0;
+            margin-bottom: 4px; line-height: 1.3;
+        }
+        .pir-step-owner {
+            font-size: 0.6rem; color: #64748b; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .pir-step-stages {
+            font-size: 0.6rem; color: #f97316; font-weight: 600; margin-top: 4px;
+        }
+        .pir-arrow {
+            display: flex; align-items: center; color: #475569;
+            font-size: 1rem; flex-shrink: 0; padding: 0 2px;
+        }
+        .pir-phase-bar {
+            height: 3px; border-radius: 2px; margin-top: 4px;
+        }
+        .pir-phase-bar.discover { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .pir-phase-bar.evaluate { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+        .pir-phase-bar.acquire { background: linear-gradient(90deg, #10b981, #34d399); }
+        .pir-phase-bar.operate { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .pir-phase-bar.discover-evaluate {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        }
+
+        /* Detail Card */
+        .detail-card {
+            width: 100%; max-width: 800px;
+            background: #1e293b; border-radius: 16px; padding: 28px 32px;
+            min-height: 260px; transition: all 0.3s; border: 1px solid #334155;
+        }
+        .detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+        .detail-num {
+            width: 48px; height: 48px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 1.2rem; color: white; flex-shrink: 0;
+        }
+        .detail-num.discover { background: #3b82f6; }
+        .detail-num.evaluate { background: #8b5cf6; }
+        .detail-num.acquire  { background: #10b981; }
+        .detail-num.operate  { background: #f59e0b; color: #1a1a2e; }
+
+        .detail-title-block h2 { font-size: 1.25rem; font-weight: 700; color: #f8fafc; margin-bottom: 2px; }
+        .detail-phase-tag {
+            font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 1px; color: #94a3b8;
+        }
+        .detail-description { font-size: 0.92rem; line-height: 1.7; color: #cbd5e1; margin-bottom: 18px; }
+
+        .detail-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .meta-item { background: #0f172a; border-radius: 10px; padding: 14px 16px; }
+        .meta-label {
+            font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; color: #64748b; margin-bottom: 4px;
+        }
+        .meta-value { font-size: 0.88rem; font-weight: 600; color: #e2e8f0; }
+        .meta-value.placeholder { color: #475569; font-style: italic; font-weight: 400; }
+
+        .timer-row {
+            display: flex; align-items: center; gap: 8px; margin-top: 14px;
+            padding: 12px 16px; background: #0f172a; border-radius: 10px;
+            border: 1px dashed #334155;
+        }
+        .timer-icon { font-size: 1.2rem; flex-shrink: 0; }
+        .timer-text { font-size: 0.8rem; color: #94a3b8; line-height: 1.5; }
+        .timer-text strong { color: #e2e8f0; }
+
+        /* Architecture Gate (Stage 2) */
+        .arch-gate {
+            margin-top: 16px; padding: 16px; border-radius: 12px;
+            background: linear-gradient(135deg, rgba(249,115,22,0.08), rgba(239,68,68,0.06));
+            border: 1px solid rgba(249,115,22,0.3);
+        }
+        .arch-gate-header {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+        }
+        .arch-gate-icon {
+            width: 28px; height: 28px; border-radius: 6px;
+            background: rgba(249,115,22,0.2); display: flex;
+            align-items: center; justify-content: center;
+            font-size: 0.8rem;
+        }
+        .arch-gate-title {
+            font-size: 0.85rem; font-weight: 700; color: #f97316;
+        }
+        .gate-decision {
+            display: flex; gap: 12px; margin-top: 10px;
+        }
+        .gate-path {
+            flex: 1; padding: 10px 12px; border-radius: 8px; font-size: 0.78rem;
+            line-height: 1.5;
+        }
+        .gate-path.yes {
+            background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3);
+            color: #34d399;
+        }
+        .gate-path.no {
+            background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+            color: #f87171;
+        }
+        .gate-path strong { display: block; margin-bottom: 2px; font-size: 0.75rem; }
+
+        /* PIR Overlay on Detail Card */
+        .pir-detail {
+            margin-top: 16px; padding: 16px; border-radius: 12px;
+            background: linear-gradient(135deg, rgba(249,115,22,0.06), rgba(249,115,22,0.02));
+            border: 1px solid rgba(249,115,22,0.2);
+            max-height: 0; overflow: hidden; opacity: 0;
+            transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.4s ease, margin 0.4s ease;
+        }
+        .pir-detail.visible {
+            max-height: 500px; opacity: 1;
+        }
+        .pir-detail-header {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+        }
+        .pir-detail-tag {
+            font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; color: #f97316;
+            padding: 3px 8px; border-radius: 4px;
+            background: rgba(249,115,22,0.15);
+        }
+        .pir-detail-title {
+            font-size: 0.85rem; font-weight: 700; color: #f8fafc;
+        }
+        .pir-detail-desc {
+            font-size: 0.82rem; color: #94a3b8; line-height: 1.6; margin-bottom: 10px;
+        }
+        .pir-detail-steps {
+            display: flex; flex-wrap: wrap; gap: 8px;
+        }
+        .pir-detail-step {
+            padding: 6px 12px; border-radius: 8px;
+            background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.15);
+            font-size: 0.75rem; font-weight: 600; color: #e2e8f0;
+        }
+
+        /* Nav */
+        .nav-row {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%; max-width: 800px; margin-top: 16px;
+        }
+        .nav-btn {
+            background: #1e293b; border: 1px solid #334155; color: #94a3b8;
+            padding: 8px 20px; border-radius: 8px; cursor: pointer;
+            font-size: 0.85rem; font-weight: 600; transition: all 0.2s;
+        }
+        .nav-btn:hover { background: #334155; color: #e2e8f0; }
+        .nav-btn:disabled { opacity: 0.3; cursor: default; }
+        .nav-counter { font-size: 0.8rem; color: #64748b; }
+
+        .hint { margin-top: 20px; font-size: 0.75rem; color: #475569; text-align: center; }
+        kbd {
+            background: #1e293b; border: 1px solid #334155;
+            padding: 2px 8px; border-radius: 4px; font-family: inherit; font-size: 0.7rem;
+        }
+
+        /* Recommendation callout */
+        .rec-callout {
+            width: 100%; max-width: 800px; margin-top: 24px;
+            padding: 16px 20px; border-radius: 12px;
+            background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.06));
+            border: 1px solid rgba(59,130,246,0.25);
+        }
+        .rec-callout h4 {
+            font-size: 0.8rem; font-weight: 700; color: #60a5fa;
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+        }
+        .rec-callout ul {
+            list-style: none; padding: 0;
+        }
+        .rec-callout li {
+            font-size: 0.82rem; color: #cbd5e1; line-height: 1.6;
+            padding: 4px 0 4px 16px; position: relative;
+        }
+        .rec-callout li::before {
+            content: ''; position: absolute; left: 0; top: 12px;
+            width: 6px; height: 6px; border-radius: 50%; background: #60a5fa;
+        }
+
+        @media (max-width: 768px) {
+            .pir-flow { flex-wrap: nowrap; overflow-x: auto; }
+            .detail-meta { grid-template-columns: 1fr; }
+            .gate-decision { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>TLP Stages &amp; Architecture Alignment</h1>
+        <p>12 trackable stages across 4 phases &mdash; toggle the PIR overlay to see how Architecture's intake process maps onto the Technology Lifecycle Program</p>
+    </div>
+
+    <div class="controls">
+        <span class="toggle-label">PIR Architecture Overlay</span>
+        <div class="toggle-switch" id="pirToggle" role="button" tabindex="0" aria-label="Toggle PIR overlay"></div>
+        <span class="overlay-badge" id="overlayBadge">Overlay Active</span>
+    </div>
+
+    <div class="progress-container">
+        <div class="phase-labels">
+            <div class="phase-label-item discover">Discover</div>
+            <div class="phase-label-item evaluate">Evaluate</div>
+            <div class="phase-label-item acquire">Acquire</div>
+            <div class="phase-label-item operate">Operate</div>
+        </div>
+        <div class="track">
+            <div class="track-line">
+                <div class="seg seg-discover"></div>
+                <div class="seg seg-evaluate"></div>
+                <div class="seg seg-acquire"></div>
+                <div class="seg seg-operate"></div>
+            </div>
+            <div class="stops" id="stops"></div>
+        </div>
+    </div>
+
+    <div class="pir-overlay" id="pirOverlay">
+        <div class="pir-container">
+            <div class="pir-header">
+                <div class="pir-header-icon">PIR</div>
+                <div>
+                    <h3>Fadi's New Tech Request Flow &rarr; Mapped to TLP Stages</h3>
+                    <p>Click any step to jump to the corresponding TLP stage</p>
+                </div>
+            </div>
+            <div class="pir-flow" id="pirFlow"></div>
+        </div>
+    </div>
+
+    <div class="detail-card" id="detail-card"></div>
+
+    <div class="nav-row">
+        <button class="nav-btn" id="prev-btn">&larr; Previous</button>
+        <span class="nav-counter" id="nav-counter"></span>
+        <button class="nav-btn" id="next-btn">Next &rarr;</button>
+    </div>
+
+    <div class="rec-callout">
+        <h4>Recommendations</h4>
+        <ul>
+            <li><strong>Add Fadi Haidar (Solution Architect) to all SBO Slack channels</strong> so architecture is aware of incoming needs early and can engage proactively during Stage 1.</li>
+            <li><strong>Architecture validation checkpoint in Stage 2:</strong> Before operational alignment proceeds, confirm that architecture has reviewed and supports the proposed direction. If not, route back to Stage 1.</li>
+            <li><strong>Architecture as SME in Stage 2:</strong> When present, architecture speaks to the business case and rationale, supporting Finance pre-approval and Procurement notification.</li>
+            <li><strong>Weekly stakeholder review meeting:</strong> Fadi's existing weekly meeting with Business Technology Reviewers can serve as the forum where new requests are triaged before entering TLP.</li>
+        </ul>
+    </div>
+
+    <div class="hint">
+        <kbd>&larr;</kbd> <kbd>&rarr;</kbd> arrow keys to navigate &bull; click any stage above &bull; toggle PIR overlay to see architecture mapping
+    </div>
+
+    <script>
+        const stages = [
+            {
+                num: 1, name: "Business Need Validation", phase: "discover",
+                desc: "A business need is identified. Architecture (Solution Architect) performs initial scoping through VPE sessions to evaluate the need \u2014 determining whether existing tools can solve it, a process change is sufficient, or if new technology must be purchased. If architecture determines a software portfolio change is warranted, the SBO authorizes exploration and brings the recommendation to the TLP team.",
+                owner: "SBO + Architecture",
+                starts: "Need is identified",
+                stops: "SBO authorizes exploration into TLP",
+                slo: "Set target SLO",
+                hasPir: true,
+                pirTitle: "Architecture Initial Scoping & Design",
+                pirDesc: "This is where Fadi's process begins. The Business Architect performs initial scoping, runs VPE (Vision Plan Execute) sessions to define the problem statement, and creates the architecture design \u2014 including scope, requirements, future state design, security architecture, data governance, and AI impact assessment. If the outcome is that new technology needs to be purchased or a vendor needs to be evaluated, it enters the TLP.",
+                pirSteps: ["Initial Scoping", "VPE Session", "Architecture Design", "Recommend Path Forward"]
+            },
+            {
+                num: 2, name: "Operational Alignment", phase: "discover",
+                desc: "Finance (FP&A Analyst) provides budget pre-approval, Procurement (JR Lopez) is notified of the upcoming need, the TLP Manager (Melissa Boud) ensures proper tracking in Zluri, and the PgM of Execution & Delivery (Jessi Duffin) is engaged. Architecture serves as a subject matter expert to speak to the business case and rationale for the proposed path.",
+                owner: "Finance / Procurement / TLP Manager / PgM / Architecture (SME)",
+                starts: "SBO authorization received",
+                stops: "Budget pre-approved & portfolio check complete",
+                slo: "Set target SLO",
+                hasPir: true,
+                hasGate: true,
+                pirTitle: "Stakeholder Review & Architecture Validation",
+                pirDesc: "This maps to Fadi's 'Present Request to Stakeholders as Intake' step. The weekly meeting with Business Technology Reviewers provides visibility, and architecture supports the business case. This stage includes a critical validation gate: if architecture has NOT been involved, the request is routed back to Stage 1 for proper scoping.",
+                pirSteps: ["Present to Stakeholders", "Architecture SME Support", "Budget Feasibility Check"]
+            },
+            {
+                num: 3, name: "Vendor Documentation Collection", phase: "discover",
+                desc: "Potential vendors are engaged to collect essential security, privacy/AI, and legal documentation required for formal review. An NDA must be signed before any document collection begins \u2014 the NDA is the first step in this stage.",
+                owner: "PgM (Delivery & Execution)",
+                starts: "Documentation collection / NDA link sent to vendor",
+                stops: "All required docs received",
+                slo: "15 business days",
+                hasPir: true,
+                pirTitle: "Vendor Engagement Begins",
+                pirDesc: "This corresponds to the beginning of Fadi's 'Vendor Engagement' block \u2014 specifically the NDA and initial vendor contact. Procurement (JR Lopez) has already been notified in Stage 2 that vendor engagement is coming.",
+                pirSteps: ["NDA Execution", "Initial Vendor Contact", "Procurement Heads-Up (from Stage 2)"]
+            },
+            {
+                num: 4, name: "Evaluation Authorization", phase: "evaluate",
+                desc: "Compliance steps required to authorize the functional evaluation of vendors are conducted (security, legal, privacy reviews).",
+                owner: "Security / Legal / Privacy",
+                starts: "Vendor docs submitted for review",
+                stops: "Evaluation authorized",
+                slo: "Set target SLO",
+                hasPir: true,
+                pirTitle: "Compliance Approval Process",
+                pirDesc: "This maps to Fadi's 'Initiate Compliance Approval Process' and document approval steps \u2014 receiving software documentation, MSA/legal terms, security documents (SOC II), DPA/CCPA documentation, and quotes/SOW/terms.",
+                pirSteps: ["Security Docs (SOC II)", "MSA / Legal Terms", "DPA / CCPA", "Quote & SOW Review"]
+            },
+            {
+                num: 5, name: "Evaluation Execution", phase: "evaluate",
+                desc: "The authorized evaluation is conducted to measure performance, while Procurement negotiates commercial terms for a complete technical and financial comparison.",
+                owner: "Requesting Team + Procurement",
+                starts: "Evaluation authorized",
+                stops: "Eval complete & terms negotiated",
+                slo: "Set target SLO",
+                hasPir: true,
+                pirTitle: "Vendor Evaluation & Negotiation",
+                pirDesc: "This maps to Fadi's 'Vendor Evaluation' activities \u2014 RFI, RFQ, PoC (Proof of Concept), scorecard evaluation, and the beginning of SOW & MSA negotiation. Procurement runs the negotiation process in parallel.",
+                pirSteps: ["RFI / RFQ", "Proof of Concept", "Scorecard Evaluation", "Procurement Negotiation"]
+            },
+            {
+                num: 6, name: "Selection Decision", phase: "evaluate",
+                desc: "Technical results and commercial terms are presented to the SBO to select a final vendor or confirm the decision to remain with existing solutions.",
+                owner: "SBO",
+                starts: "Eval results & terms ready",
+                stops: "Vendor selected (or status quo confirmed)",
+                slo: "Set target SLO",
+                hasPir: true,
+                pirTitle: "Finalize Business Case & Final Review",
+                pirDesc: "This maps to Fadi's 'Finalize Business Case' and 'Final Review with Business' steps \u2014 final scope, resources, project timeline, future state design architecture, data governance review complete, vendor onboarded, all approvals secured, and project funding request finalized.",
+                pirSteps: ["Finalize Business Case", "Final Review with Business", "Data Governance Review", "Funding Request"]
+            },
+            {
+                num: 7, name: "Contract Execution", phase: "acquire",
+                desc: "Final compliance checks are completed, the agreement is signed, and the purchase order is authorized to formally engage the vendor.",
+                owner: "Legal / Procurement / SBO",
+                starts: "Vendor selected",
+                stops: "Contract signed & PO issued",
+                slo: "Set target SLO",
+                hasPir: true,
+                pirTitle: "Purchase Process",
+                pirDesc: "This maps to Fadi's 'Initiate Purchase' and 'Purchase Process' steps \u2014 submitting the request in Coupa, final stakeholder approval, and marking the project as approved in Jira with all requirements met.",
+                pirSteps: ["Submit in Coupa", "Final Stakeholder Approval", "Mark Project Approved"]
+            },
+            {
+                num: 8, name: "Implementation", phase: "acquire",
+                desc: "The solution is configured, integrated, and end-user training is conducted to ensure readiness for production use.",
+                owner: "IT / Requesting Team / Vendor",
+                starts: "Contract executed",
+                stops: "Solution ready for production",
+                slo: "Set target SLO",
+                hasPir: true,
+                pirTitle: "Project Execution",
+                pirDesc: "This maps to Fadi's 'Project Execution' block \u2014 project kick-off, BRD, epics and user stories, development, testing/UAT, and establishing the service and support models. A project manager is assigned to run execution.",
+                pirSteps: ["Project Kick-off", "BRD & User Stories", "Development", "Testing / UAT"]
+            },
+            {
+                num: 9, name: "Production & Maintenance", phase: "operate",
+                desc: "The solution is live for business use, with established ownership for ongoing support and operational management.",
+                owner: "SBO + IT Support",
+                starts: "Go-live",
+                stops: "Ongoing (until change, renewal, or sunset)",
+                slo: "N/A (ongoing)",
+                hasPir: true,
+                pirTitle: "Service Governance",
+                pirDesc: "This maps to Fadi's 'Service Governance Process' \u2014 cataloging in Zluri (Melissa Boud), establishing the support model, updating BCP/DR plan, UAT testing sign-off, change management, and pushing to production.",
+                pirSteps: ["Service Catalogue (Zluri)", "Support Model", "BCP / DR Plan", "Change Management"]
+            },
+            {
+                num: 10, name: "Material Change Assessment", phase: "operate",
+                desc: "Any material change \u2014 including pricing, scope, data usage, or integrations \u2014 is assessed to determine if a re-evaluation or contract amendment is required.",
+                owner: "Tech Lifecycle",
+                starts: "Change detected or reported",
+                stops: "Assessment complete (continue, amend, or re-evaluate)",
+                slo: "Set target SLO",
+                hasPir: false
+            },
+            {
+                num: 11, name: "Renewal Decision", phase: "operate",
+                desc: "The Tech Lifecycle Manager notifies the SBO of an upcoming renewal to decide whether to renew, initiate an evaluation for replacement, or sunset the solution.",
+                owner: "Tech Lifecycle \u2192 SBO",
+                starts: "Renewal notification sent",
+                stops: "Decision made (renew / replace / sunset)",
+                slo: "Set target SLO",
+                hasPir: false
+            },
+            {
+                num: 12, name: "Sunset", phase: "operate",
+                desc: "The solution is formally decommissioned, access is revoked, and data is extracted or destroyed to close out the lifecycle.",
+                owner: "IT / Tech Lifecycle",
+                starts: "Sunset decision made",
+                stops: "All access revoked, data handled, lifecycle closed",
+                slo: "Set target SLO",
+                hasPir: false
+            }
+        ];
+
+        const pirFlowSteps = [
+            { name: "Business Need Identified", owner: "Business Requestor", stages: [1], phase: "discover" },
+            { name: "Initial Scoping & VPE", owner: "Business Architect", stages: [1], phase: "discover" },
+            { name: "Architecture Design", owner: "Business Architect", stages: [1], phase: "discover" },
+            { name: "Stakeholder Review", owner: "PIR Process Owner", stages: [2], phase: "discover" },
+            { name: "NDA & Vendor Contact", owner: "PgM (Execution)", stages: [3], phase: "discover" },
+            { name: "Compliance Docs", owner: "Security / Legal / Privacy", stages: [4], phase: "evaluate" },
+            { name: "Vendor Evaluation", owner: "Team + Procurement", stages: [5], phase: "evaluate" },
+            { name: "Business Case & Selection", owner: "SBO", stages: [6], phase: "evaluate" },
+            { name: "Purchase (Coupa)", owner: "Procurement", stages: [7], phase: "acquire" },
+            { name: "Project Execution", owner: "Project Manager", stages: [8], phase: "acquire" },
+            { name: "Service Governance", owner: "TLP Manager (Zluri)", stages: [9], phase: "operate" }
+        ];
+
+        let currentIndex = 0;
+        let pirOverlayActive = false;
+
+        const stopsContainer = document.getElementById('stops');
+        stages.forEach(function(s, i) {
+            var stop = document.createElement('div');
+            stop.className = 'stop' + (i === 0 ? ' active' : '');
+            stop.dataset.phase = s.phase;
+            stop.dataset.index = String(i);
+            if (s.hasPir) stop.dataset.haspir = 'true';
+
+            var dot = document.createElement('div');
+            dot.className = 'dot';
+            dot.textContent = String(s.num);
+
+            var ring = document.createElement('div');
+            ring.className = 'pir-ring';
+            dot.appendChild(ring);
+
+            var label = document.createElement('div');
+            label.className = 'stop-label';
+            label.textContent = s.name;
+
+            stop.appendChild(dot);
+            stop.appendChild(label);
+            stop.addEventListener('click', function() { selectStage(i); });
+            stopsContainer.appendChild(stop);
+        });
+
+        var pirFlowContainer = document.getElementById('pirFlow');
+        pirFlowSteps.forEach(function(step, i) {
+            if (i > 0) {
+                var arrow = document.createElement('div');
+                arrow.className = 'pir-arrow';
+                arrow.textContent = '\u2192';
+                pirFlowContainer.appendChild(arrow);
+            }
+            var el = document.createElement('div');
+            el.className = 'pir-step';
+            el.dataset.targetStage = String(step.stages[0] - 1);
+
+            var nameEl = document.createElement('div');
+            nameEl.className = 'pir-step-name';
+            nameEl.textContent = step.name;
+
+            var ownerEl = document.createElement('div');
+            ownerEl.className = 'pir-step-owner';
+            ownerEl.textContent = step.owner;
+
+            var stagesEl = document.createElement('div');
+            stagesEl.className = 'pir-step-stages';
+            stagesEl.textContent = '\u2192 Stage ' + step.stages.join(', ');
+
+            var bar = document.createElement('div');
+            bar.className = 'pir-phase-bar ' + step.phase;
+
+            el.appendChild(nameEl);
+            el.appendChild(ownerEl);
+            el.appendChild(stagesEl);
+            el.appendChild(bar);
+
+            el.addEventListener('click', function() {
+                selectStage(parseInt(el.dataset.targetStage));
+            });
+            pirFlowContainer.appendChild(el);
+        });
+
+        function selectStage(index) {
+            currentIndex = index;
+            var s = stages[index];
+
+            document.querySelectorAll('.stop').forEach(function(el, i) {
+                el.classList.toggle('active', i === index);
+            });
+
+            document.querySelectorAll('.pir-step').forEach(function(el) {
+                el.classList.toggle('highlight', parseInt(el.dataset.targetStage) === index);
+            });
+
+            var card = document.getElementById('detail-card');
+            card.innerHTML = '';
+
+            var header = document.createElement('div');
+            header.className = 'detail-header';
+
+            var num = document.createElement('div');
+            num.className = 'detail-num ' + s.phase;
+            num.textContent = String(s.num);
+
+            var titleBlock = document.createElement('div');
+            titleBlock.className = 'detail-title-block';
+
+            var title = document.createElement('h2');
+            title.textContent = s.name;
+
+            var tag = document.createElement('div');
+            tag.className = 'detail-phase-tag';
+            tag.textContent = 'Phase: ' + s.phase.charAt(0).toUpperCase() + s.phase.slice(1) + ' \u2022 Stage ' + s.num + ' of 12';
+
+            titleBlock.appendChild(title);
+            titleBlock.appendChild(tag);
+            header.appendChild(num);
+            header.appendChild(titleBlock);
+            card.appendChild(header);
+
+            var desc = document.createElement('div');
+            desc.className = 'detail-description';
+            desc.textContent = s.desc;
+            card.appendChild(desc);
+
+            var meta = document.createElement('div');
+            meta.className = 'detail-meta';
+
+            var ownerItem = document.createElement('div');
+            ownerItem.className = 'meta-item';
+            var ownerLabel = document.createElement('div');
+            ownerLabel.className = 'meta-label';
+            ownerLabel.textContent = 'Owner';
+            var ownerVal = document.createElement('div');
+            ownerVal.className = 'meta-value';
+            ownerVal.textContent = s.owner;
+            ownerItem.appendChild(ownerLabel);
+            ownerItem.appendChild(ownerVal);
+
+            var sloItem = document.createElement('div');
+            sloItem.className = 'meta-item';
+            var sloLabel = document.createElement('div');
+            sloLabel.className = 'meta-label';
+            sloLabel.textContent = 'Target SLO';
+            var sloVal = document.createElement('div');
+            sloVal.className = 'meta-value' + (s.slo.indexOf('Set') === 0 ? ' placeholder' : '');
+            sloVal.textContent = s.slo;
+            sloItem.appendChild(sloLabel);
+            sloItem.appendChild(sloVal);
+
+            meta.appendChild(ownerItem);
+            meta.appendChild(sloItem);
+            card.appendChild(meta);
+
+            var timer = document.createElement('div');
+            timer.className = 'timer-row';
+            timer.innerHTML = '<div class="timer-icon">\u23F1</div><div class="timer-text"><strong>Timer starts:</strong> ' + s.starts + '<br><strong>Timer stops:</strong> ' + s.stops + '</div>';
+            card.appendChild(timer);
+
+            if (s.hasGate) {
+                var gate = document.createElement('div');
+                gate.className = 'arch-gate';
+
+                var gateHeader = document.createElement('div');
+                gateHeader.className = 'arch-gate-header';
+                gateHeader.innerHTML = '<div class="arch-gate-icon">\u26A0</div><div class="arch-gate-title">Architecture Validation Gate</div>';
+                gate.appendChild(gateHeader);
+
+                var gateDesc = document.createElement('div');
+                gateDesc.style.cssText = 'font-size:0.82rem;color:#cbd5e1;line-height:1.6;margin-bottom:10px;';
+                gateDesc.textContent = 'Before proceeding past Stage 2, confirm that Solution Architecture (Fadi Haidar) has been involved in evaluating the business need and supports the proposed direction.';
+                gate.appendChild(gateDesc);
+
+                var decision = document.createElement('div');
+                decision.className = 'gate-decision';
+
+                var yesPath = document.createElement('div');
+                yesPath.className = 'gate-path yes';
+                yesPath.innerHTML = '<strong>\u2713 Architecture Involved</strong>Proceed to Stage 3 \u2014 Architecture serves as SME to support the business case during operational alignment.';
+
+                var noPath = document.createElement('div');
+                noPath.className = 'gate-path no';
+                noPath.innerHTML = '<strong>\u2717 Architecture Not Involved</strong>Return to Stage 1 \u2014 The business need must go through architecture scoping (initial scoping, VPE, architecture design) before proceeding.';
+
+                decision.appendChild(yesPath);
+                decision.appendChild(noPath);
+                gate.appendChild(decision);
+                card.appendChild(gate);
+            }
+
+            if (s.hasPir && pirOverlayActive) {
+                var pir = document.createElement('div');
+                pir.className = 'pir-detail visible';
+
+                var pirH = document.createElement('div');
+                pirH.className = 'pir-detail-header';
+                var pirTag = document.createElement('span');
+                pirTag.className = 'pir-detail-tag';
+                pirTag.textContent = 'PIR Overlay';
+                var pirTitle = document.createElement('span');
+                pirTitle.className = 'pir-detail-title';
+                pirTitle.textContent = s.pirTitle;
+                pirH.appendChild(pirTag);
+                pirH.appendChild(pirTitle);
+                pir.appendChild(pirH);
+
+                var pirDesc = document.createElement('div');
+                pirDesc.className = 'pir-detail-desc';
+                pirDesc.textContent = s.pirDesc;
+                pir.appendChild(pirDesc);
+
+                if (s.pirSteps && s.pirSteps.length) {
+                    var stepsDiv = document.createElement('div');
+                    stepsDiv.className = 'pir-detail-steps';
+                    s.pirSteps.forEach(function(stepName) {
+                        var chip = document.createElement('div');
+                        chip.className = 'pir-detail-step';
+                        chip.textContent = stepName;
+                        stepsDiv.appendChild(chip);
+                    });
+                    pir.appendChild(stepsDiv);
+                }
+                card.appendChild(pir);
+            }
+
+            document.getElementById('prev-btn').disabled = index === 0;
+            document.getElementById('next-btn').disabled = index === stages.length - 1;
+            document.getElementById('nav-counter').textContent = (index + 1) + ' / ' + stages.length;
+        }
+
+        function navigate(dir) {
+            var next = currentIndex + dir;
+            if (next >= 0 && next < stages.length) selectStage(next);
+        }
+
+        document.getElementById('prev-btn').addEventListener('click', function() { navigate(-1); });
+        document.getElementById('next-btn').addEventListener('click', function() { navigate(1); });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight') navigate(1);
+            if (e.key === 'ArrowLeft') navigate(-1);
+        });
+
+        var pirToggle = document.getElementById('pirToggle');
+        pirToggle.addEventListener('click', togglePir);
+        pirToggle.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePir(); }
+        });
+
+        function togglePir() {
+            pirOverlayActive = !pirOverlayActive;
+            pirToggle.classList.toggle('active', pirOverlayActive);
+            document.getElementById('overlayBadge').classList.toggle('visible', pirOverlayActive);
+            document.getElementById('pirOverlay').classList.toggle('visible', pirOverlayActive);
+
+            document.querySelectorAll('.stop').forEach(function(stop) {
+                if (stop.dataset.haspir === 'true' && pirOverlayActive) {
+                    stop.classList.add('pir-active');
+                } else {
+                    stop.classList.remove('pir-active');
+                }
+            });
+
+            selectStage(currentIndex);
+        }
+
+        selectStage(0);
+    </script>
+</body>
+</html>
